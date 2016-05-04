@@ -3,9 +3,11 @@ package com.srinivas.ele.utils;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.graphics.drawable.Drawable;
 import android.net.ConnectivityManager;
 import android.os.Environment;
@@ -21,8 +23,21 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import com.srinivas.ele.R;
+import com.srinivas.ele.database.CallTable;
+import com.srinivas.ele.database.DatabaseMgr;
+import com.srinivas.ele.database.NumbersTable;
+import com.srinivas.ele.database.SmsTable;
+import com.srinivas.ele.pojo.Call;
+import com.srinivas.ele.pojo.CallLogItem;
+import com.srinivas.ele.pojo.CallStatBasic;
+import com.srinivas.ele.pojo.SMS;
+import com.srinivas.ele.pojo.SMSLogItem;
+import com.srinivas.ele.pojo.SmsStatBasic;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.TimeUnit;
@@ -219,6 +234,195 @@ public class Common {
         return String.format("%02d:%02d:%02d", hours, minutes, seconds);
     }
 
+    public static Cursor readCalls(long from,long to)
+    {
+        return DatabaseMgr.selectRowsRawQuery("SELECT a._id,a.number,MAX( b.date ) AS date,SUM( CASE WHEN(b.TYPE=1) " +
+                "THEN duration END ) AS i_d,SUM( CASE WHEN(b.TYPE=2) THEN duration END ) AS o_d," +
+                "COUNT( CASE WHEN(b.TYPE=1) THEN 1 END ) AS i_o,COUNT( CASE WHEN(b.TYPE=2) THEN 1 END ) AS o_o," +
+                "SUM( CASE WHEN(b.TYPE=3) THEN 1 END ) AS m_o,SUM( CASE WHEN(b.TYPE=6) THEN 1 END ) AS b_o " +
+                "FROM  numbers AS a  INNER JOIN  calls AS b  ON a._id = b.number_id WHERE b.date " +
+                "BETWEEN " + from + " and " + to + " GROUP BY a._id ORDER BY date DESC ");
+    }
 
+    public static Cursor readBasicCallsStats(long from,long to)
+    {
+        return DatabaseMgr.selectRowsRawQuery("SELECT  SUM( CASE WHEN(TYPE=1) THEN duration END ) AS i_d ," +
+                " SUM( CASE WHEN(TYPE=2) THEN duration END ) AS o_d, " +
+                "COUNT( CASE WHEN(TYPE=1) THEN 1 END ) AS i_o,COUNT( CASE WHEN(TYPE=2) THEN 1 END ) AS o_o " +
+                "FROM  calls WHERE date  BETWEEN " + from + " and " + to);
+    }
+
+
+    public static ArrayList<CallLogItem> readCallsQuery(Cursor cursor) {
+        ArrayList<CallLogItem> callLogItemArrayList=new ArrayList<>();
+        try {
+            while (cursor != null && cursor.moveToNext()) {
+                String number = cursor.getString(cursor.getColumnIndex("number"));
+                Long date = cursor.getLong(cursor.getColumnIndex("date"));
+                String inCallDuration= cursor.getString(cursor.getColumnIndex("i_d"));
+                String outGoingDuration= cursor.getString(cursor.getColumnIndex("o_d"));
+                String noOfInCalls= cursor.getString(cursor.getColumnIndex("i_o"));
+                String noOfOutGoingCalls= cursor.getString(cursor.getColumnIndex("o_o"));
+                String noOfMissCalls= cursor.getString(cursor.getColumnIndex("m_o"));
+                String noOfBlockedCalls= cursor.getString(cursor.getColumnIndex("b_o"));
+
+                callLogItemArrayList.add(new CallLogItem(number,date,inCallDuration,outGoingDuration,noOfInCalls,
+                        noOfOutGoingCalls,noOfMissCalls,noOfBlockedCalls));
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+            return callLogItemArrayList;
+        }
+    }
+
+
+    public static CallStatBasic readBasicCallsStatsQuery(Cursor cursor) {
+        CallStatBasic callStatBasic=null;
+        try {
+            while (cursor != null && cursor.moveToNext()) {
+                String inCallDuration= cursor.getString(cursor.getColumnIndex("i_d"));
+                String outGoingDuration= cursor.getString(cursor.getColumnIndex("o_d"));
+                String noOfInCalls= cursor.getString(cursor.getColumnIndex("i_o"));
+                String noOfOutGoingCalls= cursor.getString(cursor.getColumnIndex("o_o"));
+
+                callStatBasic= new CallStatBasic(inCallDuration,outGoingDuration,noOfInCalls,
+                        noOfOutGoingCalls);
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return callStatBasic;
+    }
+
+    public static void insertIntoCallTable(Call call) {
+        ContentValues contentvalues = new ContentValues();
+        contentvalues.put(CallTable.NUMBER_ID, call.getNumber().getNumberId());
+        contentvalues.put(CallTable.TYPE, call.getType());
+        contentvalues.put(CallTable.DATE, call.getDate());
+        contentvalues.put(CallTable.DURATION, call.getDuration());
+        DatabaseMgr.insertRow(CallTable.TABLE_NAME, contentvalues);
+    }
+
+    public static Long insertIntoNumbersTable(Call call) {
+        Cursor numberCursor;
+        numberCursor=DatabaseMgr.selectRowsRawQuery("select _id from " + NumbersTable.TABLE_NAME + " where number='" + call.getNumber().getNumber()+"'");
+        if(numberCursor!=null && numberCursor.getCount()>0){
+            numberCursor.moveToFirst();
+            return numberCursor.getLong(numberCursor.getColumnIndex(NumbersTable._ID));
+        }else {
+            ContentValues contentvalues = new ContentValues();
+            contentvalues.put(NumbersTable.NUMBER, call.getNumber().getNumber());
+
+            return Long.valueOf(DatabaseMgr.insertRow(NumbersTable.TABLE_NAME, contentvalues));
+        }
+    }
+
+    public static Long[] getFromToDate(String frequency) {
+        Calendar cal = Calendar.getInstance();
+        Date today = cal.getTime();
+        Date fromYear;
+
+        switch (frequency){
+
+            case "Weekly":
+                cal.add(Calendar.DAY_OF_MONTH, -7);
+                fromYear = cal.getTime();
+                break;
+            case "Monthly":
+                cal.add(Calendar.MONTH, -1);
+                fromYear = cal.getTime();
+                break;
+            case "Yearly":
+                cal.add(Calendar.YEAR, -1);
+                fromYear = cal.getTime();
+                break;
+            case "Daily":
+            default:
+                cal.add(Calendar.DAY_OF_MONTH, -1);
+                fromYear = cal.getTime();
+                break;
+        }
+        return new Long[]{fromYear.getTime(),System.currentTimeMillis()};
+    }
+
+    public static Cursor readSMSs(long from,long to)
+    {
+        return DatabaseMgr.selectRowsRawQuery("SELECT a._id,a.number,MAX( b.date ) AS date," +
+                "COUNT( CASE WHEN(b.TYPE=1) THEN 1 END ) AS i_o," +
+                "COUNT( CASE WHEN(b.TYPE=2) THEN 1 END ) AS o_o" +
+                "  FROM  numbers AS a  INNER JOIN  sms AS b  ON a._id = b.number_id " +
+                "WHERE b.date BETWEEN "+from+" and "+to+" GROUP BY a._id ORDER BY date DESC ");
+    }
+
+    public static Cursor readBasicSMSsStats(long from,long to)
+    {
+        return DatabaseMgr.selectRowsRawQuery("SELECT  SUM( CASE WHEN(type=1) THEN 1 END ) AS i_o ," +
+                " SUM( CASE WHEN(type=2) THEN 1 END ) AS o_o "+
+                "FROM  sms WHERE date  BETWEEN "+from+" and "+to);
+    }
+
+
+    public static ArrayList<SMSLogItem> readSMSsQuery(Cursor cursor) {
+        ArrayList<SMSLogItem> smsLogItemArrayList=new ArrayList<>();
+        try {
+            while (cursor != null && cursor.moveToNext()) {
+                String number = cursor.getString(cursor.getColumnIndex("number"));
+                Long date = cursor.getLong(cursor.getColumnIndex("date"));
+                String noOfInSMSs= cursor.getString(cursor.getColumnIndex("i_o"));
+                String noOfOutSMSs= cursor.getString(cursor.getColumnIndex("o_o"));
+
+                smsLogItemArrayList.add(new SMSLogItem(number,date,noOfInSMSs, noOfOutSMSs));
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+            return smsLogItemArrayList;
+        }
+    }
+
+
+    public static SmsStatBasic readBasicSMSStatsQuery(Cursor cursor) {
+        SmsStatBasic smsStatBasic=null;
+        try {
+            while (cursor != null && cursor.moveToNext()) {
+                String noOfInSMSs= cursor.getString(cursor.getColumnIndex("i_o"));
+                String noOfOutSMSs= cursor.getString(cursor.getColumnIndex("o_o"));
+
+                smsStatBasic= new SmsStatBasic(noOfInSMSs,noOfOutSMSs);
+            }
+        } finally {
+            if (cursor != null) {
+                cursor.close();
+            }
+        }
+        return smsStatBasic;
+    }
+
+    public static void insertIntoCallTable(SMS sms) {
+        ContentValues contentvalues = new ContentValues();
+        contentvalues.put(SmsTable.NUMBER_ID, sms.getNumber().getNumberId());
+        contentvalues.put(SmsTable.TYPE, sms.getType());
+        contentvalues.put(SmsTable.DATE, sms.getDate());
+        DatabaseMgr.insertRow(SmsTable.TABLE_NAME, contentvalues);
+    }
+
+    public static Long insertIntoNumbersTable(SMS sms) {
+        Cursor numberCursor;
+        numberCursor=DatabaseMgr.selectRowsRawQuery("select _id from " + NumbersTable.TABLE_NAME + " where number='" + sms.getNumber().getNumber()+"'");
+        if(numberCursor!=null && numberCursor.getCount()>0){
+            numberCursor.moveToFirst();
+            return numberCursor.getLong(numberCursor.getColumnIndex(NumbersTable._ID));
+        }else {
+            ContentValues contentvalues = new ContentValues();
+            contentvalues.put(NumbersTable.NUMBER, sms.getNumber().getNumber());
+
+            return Long.valueOf(DatabaseMgr.insertRow(NumbersTable.TABLE_NAME, contentvalues));
+        }
+    }
 
 }

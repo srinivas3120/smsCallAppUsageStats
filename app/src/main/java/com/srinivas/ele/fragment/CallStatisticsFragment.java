@@ -105,7 +105,7 @@ public class CallStatisticsFragment extends Fragment {
         }
         public CallLogTask(Context context,String frequency){
             this.context=context;
-            Long[] frequencyDate=getFromToDate(frequency);
+            Long[] frequencyDate=Common.getFromToDate(frequency);
 
             this.from=frequencyDate[0];
             this.to=frequencyDate[1];
@@ -159,9 +159,9 @@ public class CallStatisticsFragment extends Fragment {
                     cursor.moveToFirst();
                     do {
                         Call call=readProviderCursor(cursor);
-                        long numberId=insertIntoNumbersTable(call);
+                        long numberId=Common.insertIntoNumbersTable(call);
                         call.getNumber().setNumberId(numberId);
-                        insertIntoCallTable(call);
+                        Common.insertIntoCallTable(call);
                     } while (cursor.moveToNext());
                 }
             }
@@ -179,8 +179,8 @@ public class CallStatisticsFragment extends Fragment {
 
         @Override
         protected ArrayList<CallLogItem> doInBackground(String... params) {
-            Cursor cursor = readCalls(from,to);
-            return readCallsQuery(cursor);
+            Cursor cursor = Common.readCalls(from, to);
+            return Common.readCallsQuery(cursor);
         }
 
         @Override
@@ -204,8 +204,8 @@ public class CallStatisticsFragment extends Fragment {
 
         @Override
         protected CallStatBasic doInBackground(String... params) {
-            Cursor cursor = readBasicCallsStats(from, to);
-            return readBasicCallsStatsQuery(cursor);
+            Cursor cursor = Common.readBasicCallsStats(from, to);
+            return Common.readBasicCallsStatsQuery(cursor);
         }
 
         @Override
@@ -217,35 +217,6 @@ public class CallStatisticsFragment extends Fragment {
         }
     }
 
-
-
-    private static Long[] getFromToDate(String frequency) {
-        Calendar cal = Calendar.getInstance();
-        Date today = cal.getTime();
-        Date fromYear;
-
-        switch (frequency){
-
-            case "Weekly":
-                cal.add(Calendar.DAY_OF_MONTH, -7);
-                fromYear = cal.getTime();
-                break;
-            case "Monthly":
-                cal.add(Calendar.MONTH, -1);
-                fromYear = cal.getTime();
-                break;
-            case "Yearly":
-                cal.add(Calendar.YEAR, -1);
-                fromYear = cal.getTime();
-                break;
-            case "Daily":
-            default:
-                cal.add(Calendar.DAY_OF_MONTH, -1);
-                fromYear = cal.getTime();
-                break;
-        }
-        return new Long[]{fromYear.getTime(),System.currentTimeMillis()};
-    }
 
     private static Born getMaxDateInserted() {
         Cursor cursor = DatabaseMgr.selectRowsRawQuery("SELECT MAX( date ) AS MAX,MIN( date ) AS MIN FROM  " + CallTable.TABLE_NAME);
@@ -264,28 +235,6 @@ public class CallStatisticsFragment extends Fragment {
         return born;
     }
 
-    private static void insertIntoCallTable(Call call) {
-        ContentValues contentvalues = new ContentValues();
-        contentvalues.put(CallTable.NUMBER_ID, call.getNumber().getNumberId());
-        contentvalues.put(CallTable.TYPE, call.getType());
-        contentvalues.put(CallTable.DATE, call.getDate());
-        contentvalues.put(CallTable.DURATION, call.getDuration());
-        DatabaseMgr.insertRow(CallTable.TABLE_NAME, contentvalues);
-    }
-
-    private static Long insertIntoNumbersTable(Call call) {
-        Cursor numberCursor;
-        numberCursor=DatabaseMgr.selectRowsRawQuery("select _id from " + NumbersTable.TABLE_NAME + " where number='" + call.getNumber().getNumber()+"'");
-        if(numberCursor!=null && numberCursor.getCount()>0){
-            numberCursor.moveToFirst();
-            return numberCursor.getLong(numberCursor.getColumnIndex(NumbersTable._ID));
-        }else {
-            ContentValues contentvalues = new ContentValues();
-            contentvalues.put(NumbersTable.NUMBER, call.getNumber().getNumber());
-
-            return Long.valueOf(DatabaseMgr.insertRow(NumbersTable.TABLE_NAME, contentvalues));
-        }
-    }
 
     public static Call readProviderCursor(Cursor cursor)
     {
@@ -294,68 +243,6 @@ public class CallStatisticsFragment extends Fragment {
         return new Call( cursor.getLong(cursor.getColumnIndex("date")),cursor.getLong(cursor.getColumnIndex("duration")), new NumberC(number, -1l),type);
     }
 
-    public static Cursor readCalls(long from,long to)
-    {
-        return DatabaseMgr.selectRowsRawQuery("SELECT a._id,a.number,MAX( b.date ) AS date,SUM( CASE WHEN(b.TYPE=1) " +
-                "THEN duration END ) AS i_d,SUM( CASE WHEN(b.TYPE=2) THEN duration END ) AS o_d," +
-                "COUNT( CASE WHEN(b.TYPE=1) THEN 1 END ) AS i_o,COUNT( CASE WHEN(b.TYPE=2) THEN 1 END ) AS o_o," +
-                "SUM( CASE WHEN(b.TYPE=3) THEN 1 END ) AS m_o,SUM( CASE WHEN(b.TYPE=6) THEN 1 END ) AS b_o " +
-                "FROM  numbers AS a  INNER JOIN  calls AS b  ON a._id = b.number_id WHERE b.date " +
-                "BETWEEN "+from+" and "+to+" GROUP BY a._id ORDER BY date DESC ");
-    }
 
-    public static Cursor readBasicCallsStats(long from,long to)
-    {
-        return DatabaseMgr.selectRowsRawQuery("SELECT  SUM( CASE WHEN(TYPE=1) THEN duration END ) AS i_d ," +
-                " SUM( CASE WHEN(TYPE=2) THEN duration END ) AS o_d, " +
-                "COUNT( CASE WHEN(TYPE=1) THEN 1 END ) AS i_o,COUNT( CASE WHEN(TYPE=2) THEN 1 END ) AS o_o "+
-                "FROM  calls WHERE date  BETWEEN "+from+" and "+to);
-    }
-
-
-    public static ArrayList<CallLogItem>  readCallsQuery(Cursor cursor) {
-        ArrayList<CallLogItem> callLogItemArrayList=new ArrayList<>();
-        try {
-            while (cursor != null && cursor.moveToNext()) {
-                String number = cursor.getString(cursor.getColumnIndex("number"));
-                Long date = cursor.getLong(cursor.getColumnIndex("date"));
-                String inCallDuration= cursor.getString(cursor.getColumnIndex("i_d"));
-                String outGoingDuration= cursor.getString(cursor.getColumnIndex("o_d"));
-                String noOfInCalls= cursor.getString(cursor.getColumnIndex("i_o"));
-                String noOfOutGoingCalls= cursor.getString(cursor.getColumnIndex("o_o"));
-                String noOfMissCalls= cursor.getString(cursor.getColumnIndex("m_o"));
-                String noOfBlockedCalls= cursor.getString(cursor.getColumnIndex("b_o"));
-
-                callLogItemArrayList.add(new CallLogItem(number,date,inCallDuration,outGoingDuration,noOfInCalls,
-                        noOfOutGoingCalls,noOfMissCalls,noOfBlockedCalls));
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-            return callLogItemArrayList;
-        }
-    }
-
-
-    public static CallStatBasic readBasicCallsStatsQuery(Cursor cursor) {
-        CallStatBasic callStatBasic=null;
-        try {
-            while (cursor != null && cursor.moveToNext()) {
-                String inCallDuration= cursor.getString(cursor.getColumnIndex("i_d"));
-                String outGoingDuration= cursor.getString(cursor.getColumnIndex("o_d"));
-                String noOfInCalls= cursor.getString(cursor.getColumnIndex("i_o"));
-                String noOfOutGoingCalls= cursor.getString(cursor.getColumnIndex("o_o"));
-
-                callStatBasic= new CallStatBasic(inCallDuration,outGoingDuration,noOfInCalls,
-                        noOfOutGoingCalls);
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-        }
-        return callStatBasic;
-    }
 
 }

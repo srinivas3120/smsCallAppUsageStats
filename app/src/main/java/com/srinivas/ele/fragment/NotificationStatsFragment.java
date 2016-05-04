@@ -135,32 +135,10 @@ public class NotificationStatsFragment extends Fragment {
             this.from=fromYear.getTime();
         }
         public GetNotifications(String frequency){
-            Calendar cal = Calendar.getInstance();
-            Date today = cal.getTime();
-            Date fromYear;
+            Long[] frequencyDate=Common.getFromToDate(frequency);
 
-            switch (frequency){
-
-                case "Weekly":
-                    cal.add(Calendar.DAY_OF_MONTH, -7);
-                    fromYear = cal.getTime();
-                    break;
-                case "Monthly":
-                    cal.add(Calendar.MONTH, -1);
-                    fromYear = cal.getTime();
-                    break;
-                case "Yearly":
-                    cal.add(Calendar.YEAR, -1);
-                    fromYear = cal.getTime();
-                    break;
-                case "Daily":
-                default:
-                    cal.add(Calendar.DAY_OF_MONTH, -1);
-                    fromYear = cal.getTime();
-                    break;
-            }
-            this.from=fromYear.getTime();
-            this.to=System.currentTimeMillis();
+            this.from=frequencyDate[0];
+            this.to=frequencyDate[1];
         }
 
 

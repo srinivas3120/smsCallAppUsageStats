@@ -104,7 +104,7 @@ public class SMSStatisticsFragment  extends Fragment {
         }
         public SMSLogTask(Context context,String frequency){
             this.context=context;
-            Long[] frequencyDate=getFromToDate(frequency);
+            Long[] frequencyDate=Common.getFromToDate(frequency);
 
             this.from=frequencyDate[0];
             this.to=frequencyDate[1];
@@ -157,9 +157,9 @@ public class SMSStatisticsFragment  extends Fragment {
                     cursor.moveToFirst();
                     do {
                         SMS sms=readProviderCursor(cursor);
-                        long numberId=insertIntoNumbersTable(sms);
+                        long numberId=Common.insertIntoNumbersTable(sms);
                         sms.getNumber().setNumberId(numberId);
-                        insertIntoCallTable(sms);
+                        Common.insertIntoCallTable(sms);
                     } while (cursor.moveToNext());
                 }
             }
@@ -177,8 +177,8 @@ public class SMSStatisticsFragment  extends Fragment {
 
         @Override
         protected ArrayList<SMSLogItem> doInBackground(String... params) {
-            Cursor cursor = readSMSs(from, to);
-            return readSMSsQuery(cursor);
+            Cursor cursor = Common.readSMSs(from, to);
+            return Common.readSMSsQuery(cursor);
         }
 
         @Override
@@ -202,8 +202,8 @@ public class SMSStatisticsFragment  extends Fragment {
 
         @Override
         protected SmsStatBasic doInBackground(String... params) {
-            Cursor cursor = readBasicSMSsStats(from, to);
-            return readBasicSMSStatsQuery(cursor);
+            Cursor cursor = Common.readBasicSMSsStats(from, to);
+            return Common.readBasicSMSStatsQuery(cursor);
         }
 
         @Override
@@ -213,37 +213,6 @@ public class SMSStatisticsFragment  extends Fragment {
             Common.dismissProgressDialog();
             super.onPostExecute(smsStatBasic);
         }
-    }
-
-
-
-
-    private static Long[] getFromToDate(String frequency) {
-        Calendar cal = Calendar.getInstance();
-        Date today = cal.getTime();
-        Date fromYear;
-
-        switch (frequency){
-
-            case "Weekly":
-                cal.add(Calendar.DAY_OF_MONTH, -7);
-                fromYear = cal.getTime();
-                break;
-            case "Monthly":
-                cal.add(Calendar.MONTH, -1);
-                fromYear = cal.getTime();
-                break;
-            case "Yearly":
-                cal.add(Calendar.YEAR, -1);
-                fromYear = cal.getTime();
-                break;
-            case "Daily":
-            default:
-                cal.add(Calendar.DAY_OF_MONTH, -1);
-                fromYear = cal.getTime();
-                break;
-        }
-        return new Long[]{fromYear.getTime(),System.currentTimeMillis()};
     }
 
     private static Born getMaxDateInserted() {
@@ -263,28 +232,6 @@ public class SMSStatisticsFragment  extends Fragment {
         return born;
     }
 
-    private static void insertIntoCallTable(SMS sms) {
-        ContentValues contentvalues = new ContentValues();
-        contentvalues.put(SmsTable.NUMBER_ID, sms.getNumber().getNumberId());
-        contentvalues.put(SmsTable.TYPE, sms.getType());
-        contentvalues.put(SmsTable.DATE, sms.getDate());
-        DatabaseMgr.insertRow(SmsTable.TABLE_NAME, contentvalues);
-    }
-
-    private static Long insertIntoNumbersTable(SMS sms) {
-        Cursor numberCursor;
-        numberCursor=DatabaseMgr.selectRowsRawQuery("select _id from " + NumbersTable.TABLE_NAME + " where number='" + sms.getNumber().getNumber()+"'");
-        if(numberCursor!=null && numberCursor.getCount()>0){
-            numberCursor.moveToFirst();
-            return numberCursor.getLong(numberCursor.getColumnIndex(NumbersTable._ID));
-        }else {
-            ContentValues contentvalues = new ContentValues();
-            contentvalues.put(NumbersTable.NUMBER, sms.getNumber().getNumber());
-
-            return Long.valueOf(DatabaseMgr.insertRow(NumbersTable.TABLE_NAME, contentvalues));
-        }
-    }
-
     public static SMS readProviderCursor(Cursor cursor)
     {
         String address = cursor.getString(cursor.getColumnIndex("address"));
@@ -292,60 +239,5 @@ public class SMSStatisticsFragment  extends Fragment {
         return new SMS( cursor.getLong(cursor.getColumnIndex("date")),-1l,
                 new NumberC(address, -1l),type);
     }
-
-    public static Cursor readSMSs(long from,long to)
-    {
-        return DatabaseMgr.selectRowsRawQuery("SELECT a._id,a.number,MAX( b.date ) AS date," +
-                "COUNT( CASE WHEN(b.TYPE=1) THEN 1 END ) AS i_o," +
-                "COUNT( CASE WHEN(b.TYPE=2) THEN 1 END ) AS o_o" +
-                "  FROM  numbers AS a  INNER JOIN  sms AS b  ON a._id = b.number_id " +
-                "WHERE b.date BETWEEN "+from+" and "+to+" GROUP BY a._id ORDER BY date DESC ");
-    }
-
-    public static Cursor readBasicSMSsStats(long from,long to)
-    {
-        return DatabaseMgr.selectRowsRawQuery("SELECT  SUM( CASE WHEN(type=1) THEN 1 END ) AS i_o ," +
-                " SUM( CASE WHEN(type=2) THEN 1 END ) AS o_o "+
-                "FROM  sms WHERE date  BETWEEN "+from+" and "+to);
-    }
-
-
-    public static ArrayList<SMSLogItem> readSMSsQuery(Cursor cursor) {
-        ArrayList<SMSLogItem> smsLogItemArrayList=new ArrayList<>();
-        try {
-            while (cursor != null && cursor.moveToNext()) {
-                String number = cursor.getString(cursor.getColumnIndex("number"));
-                Long date = cursor.getLong(cursor.getColumnIndex("date"));
-                String noOfInSMSs= cursor.getString(cursor.getColumnIndex("i_o"));
-                String noOfOutSMSs= cursor.getString(cursor.getColumnIndex("o_o"));
-
-                smsLogItemArrayList.add(new SMSLogItem(number,date,noOfInSMSs, noOfOutSMSs));
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-            return smsLogItemArrayList;
-        }
-    }
-
-
-    public static SmsStatBasic readBasicSMSStatsQuery(Cursor cursor) {
-        SmsStatBasic smsStatBasic=null;
-        try {
-            while (cursor != null && cursor.moveToNext()) {
-                String noOfInSMSs= cursor.getString(cursor.getColumnIndex("i_o"));
-                String noOfOutSMSs= cursor.getString(cursor.getColumnIndex("o_o"));
-
-                smsStatBasic= new SmsStatBasic(noOfInSMSs,noOfOutSMSs);
-            }
-        } finally {
-            if (cursor != null) {
-                cursor.close();
-            }
-        }
-        return smsStatBasic;
-    }
-
 
 }
