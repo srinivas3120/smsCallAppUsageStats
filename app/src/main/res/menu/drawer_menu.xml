@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <group android:checkableBehavior="single">
+        <item
+            android:id="@+id/nav_app_usage"
+            android:icon="@mipmap/ic_launcher"
+            android:checked="true"
+            android:title="@string/string_app_usage" />
+        <item
+            android:id="@+id/nav_notifications"
+            android:icon="@mipmap/ic_launcher"
+            android:title="@string/string_notifications" />
+        <item
+            android:id="@+id/nav_call_history"
+            android:icon="@mipmap/ic_launcher"
+            android:title="@string/string_call_history" />
+        <item
+            android:id="@+id/nav_sms_history"
+            android:icon="@mipmap/ic_launcher"
+            android:title="@string/string_sms_history" />
+        <item
+            android:id="@+id/nav_location_historyg"
+            android:icon="@mipmap/ic_launcher"
+            android:title="@string/string_location_history" />
+    </group>
+</menu>

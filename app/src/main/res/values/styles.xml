@@ -1,0 +1,44 @@
+<resources>
+
+    <style name="AppTheme" parent="MyMaterialTheme.Base">
+    </style>
+
+    <style name="MyMaterialTheme.Base" parent="Theme.AppCompat.Light.NoActionBar">
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="windowActionBarOverlay">true</item>
+        <item name="android:windowActionBarOverlay">true</item>
+        <item name="android:textColorPrimary">@color/textColorPrimary</item>
+    </style>
+
+    <style name="ToolBarStyle" parent="AppTheme">
+        <item name="titleTextAppearance">@style/Toolbar.TitleText</item>
+        <item name="elevation">@dimen/toolbar_elevation</item>
+        <item name="popupTheme">@style/ThemeOverlay.AppCompat.Light</item>
+        <item name="android:theme">@style/ThemeOverlay.AppCompat.Dark.ActionBar</item>
+        <item name="selectableItemBackground">@null</item>
+        <item name="android:background">@mipmap/img_bg_toolbar</item>
+    </style>
+
+    <style name="ToolBarStyle.Dark" parent="ToolBarStyle">
+        <item name="android:background">@color/black</item>
+    </style>
+
+    <style name="ToolBarStyle.Transparent" parent="ToolBarStyle">
+        <item name="android:background">@color/transparent</item>
+    </style>
+
+    <style name="Toolbar.TitleText" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
+        <item name="android:textSize">@dimen/toolbar_title</item>
+    </style>
+
+    <style name="AppCompatAlertDialogStyle" parent="Theme.AppCompat.Light.Dialog.Alert">
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="android:textColorPrimary">@color/black</item>
+    </style>
+    <style name="AppNameFont" parent="@android:style/TextAppearance.Small">
+        <item name="android:textColor">#000000</item>
+    </style>
+
+</resources>

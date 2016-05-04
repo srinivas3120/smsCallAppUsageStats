@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <integer name="window_animation_slow">800</integer>
+    <integer name="window_animation_normal">400</integer>
+    <integer name="window_animation_fast">200</integer>
+
+    <integer name="card_flip_time_full">400</integer>
+    <integer name="card_flip_time_half">200</integer>
+</resources>

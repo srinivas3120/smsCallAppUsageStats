@@ -1,0 +1,34 @@
+<resources>
+    <string name="app_name">ele</string>
+
+    <string name="string_done">DONE</string>
+    <string name="string_ok">OK</string>
+    <string name="string_continue">Continue</string>
+    <string name="open_drawer">drawer opened</string>
+    <string name="close_drawer">drawer closedd</string>
+
+    <string name="open_app_usage_setting">Open Apps with usage access settings</string>
+    <string name="open_notification_setting">Open Apps with Notification access settings</string>
+    <string name="last_time_used">"Last time used: "</string>
+    <string name="time_span">"Time span: "</string>
+    <string name="explanation_access_to_appusage_is_not_enabled">Failed to retrieve app usage
+        statistics. You may need to enable access
+        for this app through Settings > Security > Apps with usage access
+    </string>
+    <string name="explanation_access_to_notification_is_not_enabled">Failed to retrieve app usage
+        statistics. You may need to enable access
+        for this app through Settings > Sound and notification > Notification access
+    </string>
+    <string name="string_app_usage">App Usage</string>
+    <string name="string_notifications">Notifications</string>
+    <string name="string_call_history">Call History</string>
+    <string name="string_sms_history">SMS History</string>
+    <string name="string_location_history">Location History</string>
+    <string name="string_total_time_used">"Total time used: "</string>
+    <string name="incoming">Incoming</string>
+    <string name="outgoing">Outgoing</string>
+    <string name="call">Call</string>
+    <string name="sms">SMS</string>
+    <string name="string_loading">Loading...</string>
+
+</resources>
